@@ -1,0 +1,3109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>스프라이트 멀티 예제</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#1a1a1a;}
+    canvas { display:block; }
+
+    body, canvas, * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+
+    /* 스탯 버튼/패널 CSS (복붙) */
+#statBtn {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1200;
+  /* 스르륵 효과 */
+  transition: transform 0.55s cubic-bezier(.5,2,.4,1), opacity 0.25s;
+  background: rgba(34, 36, 40, 0.55);
+  color: #fff;
+  font-size: 16px;
+  font-family: 'Pretendard', 'GmarketSans', Arial, sans-serif;
+  font-weight: bold;
+  padding: 4px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #1115;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  opacity: 0;
+  transform: translateY(-120%); /* ★★ 최초에 완전히 위에 숨기기 */
+}
+
+#statBtn.show {
+  opacity: 1;
+  transform: translateY(0);     /* ★★ 아래로 스르륵 나타남 */
+}
+
+
+#statBtn:hover {
+  filter: brightness(1.08);
+  background: #53ac48;
+}
+#statBtn:active {
+  filter: brightness(0.92);
+}
+#statBtn .icon {
+  font-size: 20px;
+  margin-right: 2px;
+}
+#statBtn .statText {
+  color: #fff;
+  font-weight: bold;
+  font-size: 1em;
+  letter-spacing: 0.5px;
+}
+
+/* 스탯패널 디자인 */
+#statPanel {
+  position: fixed;
+  top: 14px; 
+  left: 14px; 
+  transform: none; /* 중앙정렬 해제 */
+  width: 340px; height: 420px;
+  background: linear-gradient(145deg, #263c25 80%, #1c2a1b 100%);
+  border-radius: 18px;
+  box-shadow: 0 4px 20px #111a;
+  border: 2.5px solid #2a4b22;
+  padding: 16px 18px 16px 18px;
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  font-family: 'Pretendard', 'GmarketSans', Arial, sans-serif;
+  cursor: grab;
+  transition: box-shadow 0.15s, background 0.2s;
+}
+
+#statPanel.dragging {
+  cursor: grabbing;
+  box-shadow: 0 8px 36px #0a09;
+  opacity: 0.97;
+}
+#statPanel.hide {
+  display: none !important;
+}
+.statHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 11px;
+}
+.statPoint {
+  color: #3ff8e5;
+  font-size: 1.28em;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.btn {
+  font-size: 1em; font-weight: bold;
+  padding: 5px 16px; border-radius: 6px; margin-left: 8px; border: none; cursor: pointer;
+  box-shadow: 0 2px 8px #1115;
+  transition: filter 0.1s;
+}
+.btn.apply { background: #53ac48; color: #fff; }
+.btn.close { background: #a3413d; color: #fff; }
+.btn:active { filter: brightness(0.92); }
+.statList {
+  flex: 1; overflow-y: auto; background: #2228; border-radius: 10px; padding: 9px 6px 6px 6px;
+  scrollbar-width: thin; scrollbar-color: #383 #181d16;
+  user-select: none;
+  cursor: grab;
+}
+.statList::-webkit-scrollbar { width: 7px; background: #222; }
+.statList::-webkit-scrollbar-thumb { background: #2a4b22; border-radius: 8px; }
+.statRow {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 0 0 8px 0; background: #191f16da;
+  border-radius: 7px; padding: 11px 10px 7px 12px;
+  box-shadow: 0 1px 7px #2223;
+  font-size: 1.18em;
+}
+.statInfo { flex: 1 1 65%; }
+.statName { font-weight: bold; color: #f8ea6b; font-size: 1.13em; }
+.statDesc { font-size: 0.93em; color: #7cff66; margin-top: 2px;}
+.statCtrl { display: flex; align-items: center; gap: 6px;}
+.statCtrl button {
+  width: 40px; height: 38px; font-size: 1.22em; font-weight: bold; border-radius: 7px;
+  border: none; background: #406d3a; color: #fff; cursor: pointer;
+  margin: 0 2px;
+  box-shadow: 0 2px 8px #2235;
+  transition: filter 0.12s, background 0.16s;
+}
+.statCtrl button.plus { background: #38a058; }
+.statCtrl button.minus { background: #a03838; }
+.statCtrl button:active { filter: brightness(0.88);}
+
+.statValue {
+  width: 26px; text-align: center; font-weight: bold; color: #fff;
+  background: #1a1f1e; border-radius: 4px; margin: 0 2px; font-size: 1.09em;
+  pointer-events: none;
+}
+
+
+
+/* 채팅창 감성 스타일 */
+#chatPanel {
+  position: fixed;
+  left: 0;           /* ← 38px → 0 */
+  bottom: 0;         /* ← 30px → 0 */
+  width: 340px;
+  max-height: 160px;
+  min-height: 160px;
+  background: rgba(28,37,50,0.38);
+  border-radius: 0 18px 16px 0;  /* 좌하단만 각지게 */
+  box-shadow: 0 4px 28px #4be9ff7a, 0 0 0 2px #3ffffccc inset;
+  border: 2px solid #1defffca;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(5px);
+  transition: box-shadow .12s, max-height 0.18s;
+}
+
+
+#chatList {flex:1; overflow-y:auto; padding:13px 10px 8px 16px; font-size:15px; color:#f2faff;}
+#chatForm {display:flex; align-items:center; border-top:2px solid #2af4ff4d;
+  background:rgba(18,28,32,0.87); border-radius:0 0 14px 14px; padding:7px 10px 6px 12px;}
+#chatInput {flex:1; background:none; border:none; outline:none; font-size:15px; color:#eafffa;
+  padding:5px 8px; border-radius:8px;}
+#chatInput::placeholder {color:#b2f2ff9a;}
+#chatForm button {background:#27fff3; border:none; border-radius:9px; color:#1d2231; font-weight:bold;
+  font-size:15px; padding:5px 12px; margin-left:8px; box-shadow:0 1px 6px #5efffd77; cursor:pointer;}
+#chatForm button:hover {background:#b7ffff; color:#263d43;}
+
+#rankPanel {
+  position: fixed;
+  right: 0;          /* ← 40px → 0 */
+  bottom: 0;         /* ← 34px → 0 */
+  width: 270px;
+  min-height: 90px;
+  max-height: 155px;
+  background: linear-gradient(133deg, #232328cc 72%, #15161a99 100%);
+  border-radius: 13px 0 0 0;     /* ← 우하단만 0, 나머지는 13px */
+  border: 1.8px solid #24253a55;
+  box-shadow: 0 5px 22px #0007, 0 0 0 2.5px #ffe08329 inset;
+  color: #f3e7c5;
+  padding: 10px 15px 9px 15px;
+  font-family: 'Pretendard', 'SUIT', 'Arial', sans-serif;
+  font-size: 15px;
+  backdrop-filter: blur(12px);
+  z-index: 1200;
+  transition: box-shadow 0.18s;
+}
+
+
+
+.rankHeader {
+  font-size: 1.11em; font-weight: 700;
+  color: #ffe083;
+  letter-spacing: 1.2px;
+  margin-bottom: 7px; 
+  padding-bottom: 5px;
+  border-bottom: 1.5px solid #2c2a1f88;
+  text-align: left;
+  text-shadow: 0 2px 10px #836e3648, 0 0 2px #24201550;
+}
+
+.rankList {
+  display: flex; flex-direction: column; gap: 7px;
+}
+
+.rankRow {
+  display: flex; align-items: center;
+  gap: 10px;
+  background: linear-gradient(92deg, #232234ea 75%, #201b21c7 100%);
+  border-radius: 8.5px;
+  padding: 7px 12px 7px 13px;
+  font-size: 1.01em;
+  border-left: 5px solid #ffe08333;
+  margin-bottom: 2px;
+  box-shadow: 0 2.5px 9px #0003;
+  transition: background 0.16s;
+  filter: drop-shadow(0 2px 2px #0002);
+}
+
+.rankRow.top1 {
+  background: linear-gradient(90deg, #3c3421 80%, #1c1610 100%);
+  border-left: 5px solid #ffe159;
+  color: #ffeab9;
+  font-weight: 800;
+}
+.rankRow.top2 {
+  background: linear-gradient(90deg, #263452 80%, #10161c 100%);
+  border-left: 5px solid #b8c4ea;
+  color: #e6eeff;
+  font-weight: 700;
+}
+.rankRow.top3 {
+  background: linear-gradient(90deg, #483b29 80%, #211911 100%);
+  border-left: 5px solid #e1b579;
+  color: #ffe6c6;
+  font-weight: 700;
+}
+
+.rankRow .rankNum {
+  width: 20px; 
+  text-align: center;
+  font-weight: 900;
+  color: #f7ebc3;
+  font-size: 1.13em;
+}
+.rankRow .name {
+  flex: 2 1 120px;
+  color: #fff8ee;
+  font-weight: 700;
+  text-shadow: 0 1px 6px #0006;
+  letter-spacing: 0.5px;
+  font-size: 1.03em;
+}
+.rankRow .level {
+  color: #f6c95c;
+  margin-left: 10px;
+  font-weight: 700;
+  font-size: 0.98em;
+}
+.rankRow .atk {
+  color: #6edfff;
+  margin-left: 8px;
+  font-size: 0.97em;
+}
+
+#autoBtn {
+  position: fixed;  /* 화면 기준 고정 */
+  left: auto;
+  right: 450px;   /* mp 오브에서 살짝 오른쪽 */
+  top: calc(100vh - 45px); /* 엠피통과 y좌표 맞춤 (필요시 미세조정) */
+  width: 36px; height: 36px;
+  background: linear-gradient(145deg, #eee 60%, #aee4ff 100%);
+  border-radius: 50%;
+  border: 2.5px solid #3b83a7;
+  box-shadow: 0 2px 8px #167fff50;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 5000;
+  transition: filter 0.13s;
+  user-select: none;
+}
+
+#autoBtn.on {
+  background: linear-gradient(135deg, #caffaa 70%, #38ed73 100%);
+  border-color: #38ed73;
+  filter: drop-shadow(0 0 7px #70ffb4cc);
+}
+#autoBtn span {
+  font-size: 1.14em;
+  color: #136d60;
+  font-weight: bold;
+  letter-spacing: -1px;
+  pointer-events: none;
+}
+  
+/* 인벤토리 버튼 디자인 (스탯버튼과 거의 동일) */
+#invBtn {
+  position: fixed;
+  top: 0;
+  left: 146px; /* 스탯버튼보다 약간 오른쪽에 띄움 */
+  z-index: 1200;
+  transition: transform 0.55s cubic-bezier(.5,2,.4,1), opacity 0.25s;
+  background: rgba(34, 36, 40, 0.55);
+  color: #fff;
+  font-size: 16px;
+  font-family: 'Pretendard', 'GmarketSans', Arial, sans-serif;
+  font-weight: bold;
+  padding: 4px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #1115;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  opacity: 1;
+  transform: translateY(0);
+}
+#invBtn .icon { font-size: 21px; margin-right: 2px; }
+#invBtn .invText { color: #fff; font-weight: bold; font-size: 1em; letter-spacing: 0.5px; }
+#invBtn:hover { filter: brightness(1.08); background: #4b85cb; }
+#invBtn:active { filter: brightness(0.92); }
+
+/* 인벤토리 패널 (스탯패널 디자인 참고) */
+#invPanel {
+  position: fixed;
+  top: 18px; left: 170px;
+  width: 360px; height: 470px;
+  background: linear-gradient(142deg, #27384a 80%, #182a3b 100%);
+  border-radius: 18px;
+  box-shadow: 0 4px 20px #111a;
+  border: 2.5px solid #30507a;
+  padding: 15px 15px 15px 15px;
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  font-family: 'Pretendard', 'GmarketSans', Arial, sans-serif;
+  cursor: grab;
+  transition: box-shadow 0.15s, background 0.2s;
+}
+#invPanel.dragging { cursor: grabbing; box-shadow: 0 8px 36px #003a; opacity: 0.98;}
+#invPanel.hide { display: none !important; }
+.invHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.invGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 8px;
+  background: #1b2533d7;
+  border-radius: 13px;
+  padding: 15px;
+}
+.invSlot {
+  width: 46px; height: 46px;
+  background: #253042;
+  border-radius: 8px;
+  border: 2.3px solid #45668a;
+  box-shadow: 0 2px 8px #1115;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2em;
+  color: #e6ebf7;
+  transition: background 0.17s, border 0.13s;
+  user-select: none;
+}
+.invSlot:hover { background: #375f9c; border-color: #80adf7; }
+
+.invPageBar {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0 2px 0;
+  background: none;
+  margin-top: 2px;
+  margin-bottom: -6px;
+}
+.invPageBtn {
+  background: #3a4d77;
+  color: #ffecc7;
+  font-size: 1.45em;
+  font-weight: bold;
+  border: none;
+  border-radius: 9px;
+  width: 38px; height: 38px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #1226;
+  transition: background 0.18s, filter 0.13s;
+  outline: none;
+  user-select: none;
+}
+.invPageBtn:active {
+  filter: brightness(0.9);
+  background: #26509e;
+}
+.invPageNum {
+  color: #ffecc7;
+  font-weight: bold;
+  font-size: 1.08em;
+  min-width: 62px;
+  text-align: center;
+  letter-spacing: 1.2px;
+  background: rgba(30,40,59,0.44);
+  border-radius: 7px;
+  padding: 4px 14px 2px 14px;
+}
+
+
+
+
+
+
+
+
+
+
+
+  </style>
+</head>
+<body>
+   <audio id="bgm" src="배경음악.MP3" autoplay loop></audio>
+   <audio id="skill2Sound" src="우뢰샷음.ogg"></audio>
+   <audio id="attackSound" src="기본공격.ogg"></audio>
+   <audio id="skill1Sound" src="강격.ogg"></audio>
+   <audio id="hitSound" src="타격음.ogg"></audio>
+   <audio id="footstepSound" src="발소리.ogg"></audio>
+   <audio id="deathSound" src="죽는음.ogg"></audio>
+   <audio id="levelupSound" src="레벨업.ogg"></audio>
+   <audio id="butterflyDeathSound" src="나비사망음.ogg"></audio>
+   <audio id="orbPickupSound" src="오브습득.ogg"></audio>
+   <audio id="applySound" src="적용.ogg"></audio>
+   <audio id="statUpSound" src="스텟찍기.ogg"></audio>
+   <audio id="statPanelOpenSound" src="스탯분배.ogg"></audio>
+   <audio id="windSound" src="바람소리.wav"></audio>
+   <audio id="criticalSound" src="크리티컬.wav" preload="auto"></audio>
+   <audio id="openBagSound" src="가방열기.wav" preload="auto"></audio>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <canvas id="game"></canvas>
+  <div id="autoBtn" title="경험치오토">
+  <span>Auto</span>
+</div>
+  <script src="/socket.io/socket.io.js"></script>
+
+
+  <!-- 스탯버튼 -->
+<button id="statBtn"><span class="icon">📊</span> <span class="statText">스탯분배</span></button>
+<!-- 스탯 패널 -->
+<div id="statPanel">
+  <div class="statHeader">
+    <span class="statPoint">StatPoints: <span id="statPoints">0</span></span>
+    <button class="btn apply">Apply</button>
+    <button class="btn close">Close</button>
+  </div>
+  <div class="statList" id="statList"></div>
+</div>
+
+
+<!-- 인벤토리 버튼 -->
+<button id="invBtn"><span class="icon">🎒</span> <span class="invText">인벤토리</span></button>
+<!-- 인벤토리 패널 -->
+<div id="invPanel" class="hide">
+  <div class="invHeader">
+    <span style="font-size:1.13em;font-weight:bold;color:#ffeecc;">인벤토리</span>
+    <button class="btn close">Close</button>
+  </div>
+  <div class="invGrid" id="invGrid"></div>
+
+  <div class="invPageBar">
+  <button class="invPageBtn" id="invPagePrev">&lt;</button>
+  <span class="invPageNum" id="invPageNum">1 / 2</span>
+  <button class="invPageBtn" id="invPageNext">&gt;</button>
+</div>
+
+
+</div>
+
+
+
+
+
+<!-- 채팅 패널 UI 추가 -->
+<div id="chatPanel">
+  <div id="chatList"></div>
+  <form id="chatForm" autocomplete="off">
+    <input id="chatInput" type="text" maxlength="60" placeholder="채팅 입력(Enter)" />
+    <button type="submit">전송</button>
+  </form>
+</div>
+
+<!-- 유저 랭킹 패널 -->
+<div id="rankPanel">
+  <div class="rankHeader">
+    <span class="crown gold">👑</span>
+    <span class="rankTitle">User Ranking</span>
+  </div>
+  <div class="rankList" id="rankList"></div>
+</div>
+
+<div id="onlinePanel"
+  style="
+    position:fixed;
+    top:0; left:50%; transform:translateX(-50%);
+    background:rgba(25,27,32,0.92);
+    color:#ffe95d;
+    font-weight:500;
+    font-size:0.62em;
+    padding:3px 16px 2px 16px;
+    border-radius:4px;
+    box-shadow:0 1px 6px #0007, 0 0 0 1.5px #ffe95d70 inset;
+    border:1px solid #383838;
+    z-index:9999;
+    user-select:none;
+    letter-spacing:0.5px;
+    opacity:0.95;
+    min-width:64px;
+    text-align:center;
+  ">
+  현재접속자: <span id="onlineNum">---명</span>
+</div>
+
+<div id="autoWarning" style="
+  display:none;
+  position:fixed; 
+  top:35px; left:50%; 
+  transform:translateX(-50%);
+  background: rgba(18,29,15,0.30); /* 기존 0.95 → 0.30 (숫자가 작을수록 더 투명) */
+  color:#f44bfa;
+  font-size:1.15em; 
+  padding:9px 30px; 
+  border-radius:16px;
+  z-index:9999;
+  box-shadow:0 3px 12px #0008;
+  font-weight:bold;
+  letter-spacing:2px;
+">
+  오토모드시 불가!
+</div>
+
+
+<div id="statApplyAlert" style="
+  display:none;
+  position:fixed;
+  left:50%; top:19%;
+  transform:translate(-50%, 0);
+  background: rgba(18,29,15,0.30); /* 기존 0.95 → 0.30 (숫자가 작을수록 더 투명) */
+
+  color:#bfff7f;
+  font-weight:700;
+  font-size:1.35em;
+  padding:12px 34px 10px 34px;
+  border-radius:18px;
+  box-shadow:0 3px 14px #0d0 0.13;
+  z-index:10000;
+  letter-spacing:2px;
+  text-align:center;
+  user-select:none;
+  opacity:0.98;
+">적용되었습니다.</div>
+
+<div id="mapCoordPanel"
+  style="
+    position:fixed;
+    top:0; right:0;
+    background:rgba(25,27,32,0.92);
+    color:#ffe95d;
+    font-weight:500;
+    font-size:0.62em;
+    padding:3px 16px 2px 16px;
+    border-radius:4px 0 0 4px;
+    box-shadow:0 1px 6px #0007, 0 0 0 1.5px #ffe95d70 inset;
+    border:1px solid #383838;
+    z-index:9999;
+    user-select:none;
+    letter-spacing:0.5px;
+    opacity:0.95;
+    min-width:70px;
+    text-align:center;
+    pointer-events:none;
+  ">
+  맵좌표 <span id="mapCoordText">0:0</span>
+</div>
+
+
+
+
+
+
+  <script>
+    document.getElementById('bgm').volume = 0.5; // 50% 볼륨
+  document.getElementById('statBtn').classList.remove('show');
+  const canvas = document.getElementById("game");
+  const statPanel = document.getElementById('statPanel');
+  let lastStatPoints = 0;
+  let selectedSkill = 1;
+ 
+
+  let autoOrb = false;
+  const autoBtn = document.getElementById("autoBtn");
+  autoBtn.onclick = function() {
+  autoOrb = !autoOrb;
+  autoBtn.classList.toggle("on", autoOrb);
+  };
+
+canvas.addEventListener("mousemove", function(e) {
+  if (autoOrb) return; // 오토 ON이면 마우스 입력 무시!
+  mouseScreen.x = e.clientX;
+  mouseScreen.y = e.clientY;
+});
+
+
+const ARROW_FRAME_COUNT = 4; // 프레임 수
+const ARROW_FRAME_W = 60;    // 한 프레임 너비(px)
+const ARROW_FRAME_H = 60;    // 한 프레임 높이(px)
+
+
+
+
+
+
+
+function drawButterflyHpBar(ctx, x, y, hp, maxHp, cam) {
+  // HP바 위치: 나비 머리 위
+  let bx = x - cam.x;
+  let by = y - cam.y - BUTTERFLY_SIZE * 0.63; // 머리 위에
+  let width = 34, height = 6;
+  let ratio = Math.max(0, Math.min(1, hp / maxHp));
+  ctx.save();
+  // 테두리
+  ctx.globalAlpha = 0.83;
+  ctx.fillStyle = "#210";
+  ctx.fillRect(bx - width / 2 - 1, by - height / 2 - 1, width + 2, height + 2);
+  // HP 빨간색
+  ctx.fillStyle = "#ff3333";
+  ctx.fillRect(bx - width / 2, by - height / 2, width * ratio, height);
+  // 바깥선
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(bx - width / 2 - 1, by - height / 2 - 1, width + 2, height + 2);
+  ctx.restore();
+}
+
+
+    function expToNextLevel(level) {
+  if (level <= 50) return 30 + (level-1)*8;
+  else return 422 + Math.round(Math.pow(level-50, 2.2)*2.7);
+}
+
+function getPlayerStats(level) {
+  return {
+    hp: 50,    // 레벨이 올라가도 고정!
+    mp: 10,
+    atk: 7,
+    def: 0,
+    range: 1,
+    regen: 2
+  };
+}
+
+       const socket = io();
+    // === 이미지 로드 ===
+    const grassImg = new Image(); grassImg.src = "바닥.png";
+    const treeImg = new Image();  treeImg.src  = "참나무.png";
+    const scoutImg = new Image(); scoutImg.src = "스카우트.png";
+    const arrowImg = new Image(); arrowImg.src = "스컬지화살.png";
+    const dashboardImg = new Image();
+    const yellowFlowerImg = new Image(); yellowFlowerImg.src = "노란꽃.png";
+    const redFlowerImg    = new Image(); redFlowerImg.src = "빨간꽃.png";
+    const blueFlowerImg   = new Image(); blueFlowerImg.src = "파란꽃.png";
+    const whiteFlowerImg  = new Image(); whiteFlowerImg.src = "하얀꽃.png";
+    const BUTTERFLY_SIZE = 63;
+const butterflyImg = new Image();
+butterflyImg.src = "나비.png";
+let butterflies = [];
+
+socket.on("butterflies", function(list) {
+  butterflies = list;
+});
+
+    let playerAttackCooldownEnd = 0;
+    let evadeParticles = []; // {x, y, life, maxLife}
+
+    
+
+
+
+
+
+dashboardImg.src = "데시보드.png"; // 파일명을 정확히 맞춰주세요!
+
+const skillIcon1 = new Image(); // 강격
+skillIcon1.src = "강격.png";
+const skillIcon2 = new Image(); // 우뢰샷
+skillIcon2.src = "우뢰샷.png";
+
+
+
+
+const ctx = canvas.getContext("2d");
+
+let rightMouseDown = false;
+
+
+
+canvas.addEventListener("mousedown", function(e) {
+  if (e.button === 2) { // 오른쪽 마우스
+    rightMouseDown = true;
+    e.preventDefault();
+
+    // === 바람소리 재생 ===
+    let wind = document.getElementById('windSound');
+    if (wind) {
+      wind.currentTime = 0; // 연타시 처음부터
+      wind.play();
+    }
+  }
+  // 오토모드시: 오른쪽 클릭은 경고 띄우지 않음!
+  if (autoOrb) {
+    if (e.button !== 2) showAutoWarning();
+    return;
+  }
+});
+
+
+
+canvas.addEventListener("mouseup", function(e) {
+  if (e.button === 2) {
+    rightMouseDown = false;
+    e.preventDefault();
+  }
+});
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+
+
+    // 플레이어 오브젝트에 추가
+    let glowTimer = 0;  // 0: 없음, >0: 남은 glow 프레임 수
+    // ===== 최상단에 파티클 배열 선언 =====
+let hitParticles = []; // [{x, y, vx, vy, life, maxLife} ...]
+let damageParticles = []; // {x, y, value, life, maxLife}
+let killMsg = null;   // {killer, victim, time}
+let killMsgParticles = [];  // 파티클 효과 배열
+let levelupParticles = []; // ← 요기!
+let hp = 300, maxHp = 300, mp = 80, maxMp = 80;
+let skillCooldowns = [0, 0]; // 0:강격, 1:우뢰샷 (타임스탬프)
+// 기존 let speed = 2; 부분을 아래로 바꿈!
+let speed = rightMouseDown ? 4 : 2; // 2배 이속
+let yellowFlowers = [];
+let redFlowers = [];
+let blueFlowers = [];
+let whiteFlowers = [];
+let butterflyProjectiles = [];
+let players = {};
+let sparkles = [];
+
+
+
+socket.on("butterflyProjectiles", arr => {
+  butterflyProjectiles = arr;
+});
+
+socket.on("players", function(list) {
+  players = list;
+});
+
+// 전역에 추가 (맨 위에)
+function makeArrowId() {
+  // 아주 간단하게 현재 시간+랜덤값 조합
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 8);
+}
+
+
+function drawButterflyProjectiles(cam) {
+  butterflyProjectiles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(p.x - cam.x, p.y - cam.y, 11, 0, Math.PI*2);
+    ctx.fillStyle = "#ffe629"; // 노란색 침
+    ctx.shadowColor = "#ffe700";
+    ctx.shadowBlur = 9;
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawButterflyMove(ctx, x, y, dir, frame, cam) {
+  // dir(0~3): 0아래 1왼쪽 2오른쪽 3위
+  const sx = frame * BUTTERFLY_SIZE;
+  const sy = dir * BUTTERFLY_SIZE;
+  ctx.drawImage(
+    butterflyImg,
+    sx, sy, BUTTERFLY_SIZE, BUTTERFLY_SIZE,
+    x - cam.x - BUTTERFLY_SIZE / 2,
+    y - cam.y - BUTTERFLY_SIZE + 12,
+    BUTTERFLY_SIZE, BUTTERFLY_SIZE
+  );
+}
+
+  // === 꽃 위치 랜덤 생성 ===
+  socket.on("initTrees", (data) => {
+  trees = data;
+  yellowFlowers = getRandomFlowerPositions(100);
+  redFlowers    = getRandomFlowerPositions(100);
+  blueFlowers   = getRandomFlowerPositions(100);
+  whiteFlowers  = getRandomFlowerPositions(100);
+});
+
+socket.on("onlineNum", function(n) {
+  document.getElementById("onlineNum").textContent = n + "명";
+});
+
+
+function drawButterflyAttack(ctx, x, y, dir, frame, cam) {
+  // 이동과 동일
+  drawButterflyMove(ctx, x, y, dir, frame, cam);
+}
+// 사망 애니
+function drawButterflyDead(ctx, x, y, deadFrameIdx, cam) {
+  // deadFrameIdx: 0~2 (4,5,6행, 열1)
+  const sy = (4 + deadFrameIdx) * BUTTERFLY_SIZE;
+  ctx.drawImage(
+    butterflyImg,
+    1 * BUTTERFLY_SIZE, sy, BUTTERFLY_SIZE, BUTTERFLY_SIZE,
+    x - cam.x - BUTTERFLY_SIZE / 2, y - cam.y - BUTTERFLY_SIZE + 16, BUTTERFLY_SIZE, BUTTERFLY_SIZE
+  );
+}
+
+
+
+
+function getRandomFlowerPositions(count) {
+  const positions = [];
+  const used = new Set();
+
+  while (positions.length < count) {
+    const fx = Math.random() * MAP_SIZE;
+    const fy = Math.random() * MAP_SIZE;
+    const key = Math.round(fx) + ',' + Math.round(fy);
+    if (!used.has(key)) {
+      used.add(key);
+      positions.push({ x: fx, y: fy });
+    }
+  }
+  return positions;
+}
+
+function drawEvadeParticles(cam) {
+  evadeParticles.forEach(p => {
+    let t = p.life / p.maxLife;         // 0~1
+    let scale = 1.0 + 0.55 * t;         // 점점 커짐
+    let alpha = 1.0 - t;                // 점점 사라짐
+    let fontSize = 28 * scale;
+
+    ctx.save();
+    ctx.globalAlpha = 0.95 * alpha;
+    ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
+    ctx.fillStyle = "#39ff3a";           // 선명한 녹색
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2.7 * scale;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let px = p.x - cam.x;
+    let py = p.y - cam.y;
+    ctx.strokeText("회피", px, py);
+    ctx.fillText("회피", px, py);
+    ctx.restore();
+  });
+}
+
+
+
+
+
+
+function showAutoWarning() {
+  const el = document.getElementById('autoWarning');
+  if (!el) return;
+  el.style.display = 'block';
+  clearTimeout(window._autoWarningTimer);
+  window._autoWarningTimer = setTimeout(() => {
+    el.style.display = 'none';
+  }, 1400); // 1.4초간 표시
+}
+
+
+// ===== 파티클 업데이트/그리기 함수 추가 =====
+function updateHitParticles() {
+  for (let i = hitParticles.length - 1; i >= 0; i--) {
+    let p = hitParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life++;
+    if (p.life > p.maxLife) hitParticles.splice(i, 1);
+  }
+}
+function drawHitParticles(cam) {
+  hitParticles.forEach((p, i) => {
+    let alpha = 1 - p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = 1;  // 일단 완전 불투명으로
+    ctx.beginPath();
+    ctx.arc(p.x - cam.x, p.y - cam.y, 18 * alpha, 0, Math.PI * 2);  // 더 크게!
+    ctx.fillStyle = "#ff4444"; // 완전 진하게
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // push된 파티클 개수 보이게
+  if (hitParticles.length > 0) {
+    
+  }
+}
+
+
+
+    function checkOrbPickup() {
+  let updated = false;
+  orbs.forEach((orb, i) => {
+    const dx = player.x - orb.x, dy = player.y - orb.y;
+    if (dx*dx + dy*dy < 360) { // 19px 이내(충돌)
+      socket.emit("pickupOrb", orb.id);
+      updated = true;
+      // === 경험치 Glow 효과 발동!
+      glowTimer = 18;  // 18프레임 ≈ 0.3초 (60fps 기준)
+      let orbSound = document.getElementById('orbPickupSound');
+      if (orbSound) {
+        orbSound.currentTime = 0;
+        orbSound.play();
+      }
+
+    }
+  });
+  if (updated) requestOrbs();
+}
+
+// ===== 무작위 영어 닉네임 생성 (최상단에서, socket 생성 이후!) =====
+function randomId(len=8) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for(let i=0;i<len;i++) id += chars[Math.floor(Math.random()*chars.length)];
+  return id;
+}
+const nickname = randomId(8);
+let myId = null;
+socket.on("connect", () => {
+  myId = socket.id;
+  socket.emit("setname", nickname); // 서버에 닉네임 전달
+});
+
+// ===== 채팅 시스템 =====
+const chatList = document.getElementById('chatList');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+chatForm.onsubmit = function(e){
+  e.preventDefault();
+  const msg = chatInput.value.trim();
+  if(msg){
+    socket.emit("chat", msg);
+    chatInput.value = "";
+  }
+};
+socket.on("chat", ({name, msg}) => {
+  const div = document.createElement("div");
+  div.innerHTML = `<b style="color:#70ffff;">${name}</b>: ${msg}`;
+  chatList.appendChild(div);
+  chatList.scrollTop = chatList.scrollHeight;
+});
+
+
+socket.on("killMsg", ({killer, victim}) => {
+  
+  killMsg = { killer, victim, time: Date.now() };
+
+  // 임팩트 파티클: 화면 중앙 위에서 터지게!
+  for(let i=0; i<34; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 8 + Math.random()*3;
+    killMsgParticles.push({
+      x: canvas.width/2,
+      y: 78,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      life: 0,
+      maxLife: 22 + Math.random()*7
+    });
+  }
+});
+
+function updateKillMsgParticles() {
+  for(let i=killMsgParticles.length-1; i>=0; i--) {
+    let p = killMsgParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.18; // 중력 느낌
+    p.life++;
+    if (p.life > p.maxLife) killMsgParticles.splice(i, 1);
+  }
+}
+function drawKillMsgParticles() {
+  killMsgParticles.forEach(p => {
+    let alpha = 1 - p.life/p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha*0.75;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 9*alpha, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,60,20,0.87)`;
+    ctx.shadowColor = "#fff8";
+    ctx.shadowBlur = 8*alpha;
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+
+
+function drawKillMsg() {
+  if (!killMsg) return;
+  let elapsed = (Date.now() - killMsg.time) / 1000;
+  if (elapsed > 2.5) { killMsg = null; return; }
+  // 임팩트 효과: 살짝 커졌다가 줄어드는 scale
+  let t = Math.min(1, elapsed/0.25);
+  let scale = 1.0; // ★ 1배 고정!
+  ctx.save();
+  ctx.globalAlpha = 1 - Math.max(0, (elapsed-2.0)/0.5); // 점점 사라짐
+  ctx.font = `bold ${25*scale}px Pretendard, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "#ff7322";
+  ctx.shadowBlur = 14;
+
+  // 문장 분리 렌더링
+  const textLeft = `${killMsg.killer} 님이 `;
+  const textMid = `${killMsg.victim} 님을 `;
+  const textRight = `처치했습니다!`;
+
+  // 중앙 좌표
+  let x = canvas.width/2, y = 70;
+
+  // 텍스트 길이 측정
+  let widthLeft = ctx.measureText(textLeft).width;
+  let widthMid = ctx.measureText(textMid).width;
+  let widthAll = widthLeft + widthMid + ctx.measureText(textRight).width;
+
+  let cursor = x - widthAll/2;
+
+  // 1. killer (파랑)
+  ctx.fillStyle = "#339aff";
+  ctx.fillText(killMsg.killer, cursor + ctx.measureText(killMsg.killer).width/2, y);
+  cursor += ctx.measureText(killMsg.killer).width;
+
+  // " 님이 " (흰색)
+  ctx.fillStyle = "#fff";
+  ctx.fillText(" 님이 ", cursor + ctx.measureText(" 님이 ").width/2, y);
+  cursor += ctx.measureText(" 님이 ").width;
+
+  // 2. victim (빨강)
+  ctx.fillStyle = "#ff2b2b";
+  ctx.fillText(killMsg.victim, cursor + ctx.measureText(killMsg.victim).width/2, y);
+  cursor += ctx.measureText(killMsg.victim).width;
+
+  // " 님을 처치했습니다!" (흰색)
+  ctx.fillStyle = "#fff";
+  ctx.fillText(" 님을 처치했습니다!", cursor + ctx.measureText(" 님을 처치했습니다!").width/2, y);
+
+  ctx.restore();
+}
+
+function updateEvadeParticles() {
+  for (let i = evadeParticles.length - 1; i >= 0; i--) {
+    let p = evadeParticles[i];
+    p.life++;
+    if (p.life > p.maxLife) evadeParticles.splice(i, 1);
+  }
+}
+
+socket.on("butterflyDeath", ({id}) => {
+  let snd = document.getElementById('butterflyDeathSound');
+  if (snd) { snd.currentTime = 0; snd.play(); }
+});
+
+
+
+
+
+
+
+
+
+
+// 클라 소켓 이벤트
+socket.on("hitEffect", ({ x, y, id, damage, arrowId, crit }) => {
+  // 화살 삭제
+  if (arrowId !== undefined) {
+    let idx = arrows.findIndex(a => a.id === arrowId);
+    if (idx !== -1) arrows.splice(idx, 1);
+  }
+
+  // 피격음
+  let hitSound = document.getElementById('hitSound');
+  if (hitSound) {
+    hitSound.currentTime = 0;
+    hitSound.play();
+  }
+
+  // 나비 사망음 추가
+  if (typeof id === "string" && id.startsWith("butterfly_") && damage > 0) {
+    // 나비 id 찾기
+    let butterfly = butterflies.find(b => "butterfly_" + b.id === id);
+    if (butterfly && butterfly.hp <= 0) {
+      let snd = document.getElementById('butterflyDeathSound');
+      if (snd) { snd.currentTime = 0; snd.play(); }
+    }
+  }
+
+  // 회피 파티클!
+  if (damage === 0) {
+    evadeParticles.push({
+      x: x,
+      y: y - 52,      // 머리 위 위치
+      life: 0,
+      maxLife: 34     // 34프레임 ≈ 0.55초 (적당히 조절)
+    });
+    return;
+  }
+
+  // ⭐️ 크리티컬 sparkles 파티클 생성
+  if (crit) {
+
+    let snd = document.getElementById('criticalSound');
+  if (snd) {
+    snd.currentTime = 0;
+    snd.play();
+  }
+
+  damageParticles.push({
+    x: x,
+    y: y - 65, // 머리 위
+    value: damage,
+    crit: true,
+    life: 0,
+    maxLife: 38, // 프레임(0.6초쯤)
+  });
+}
+
+
+
+
+  // 크리티컬 여부에 따라 딱 한 번만!
+  damageParticles.push({
+    x,
+    y: crit ? y - 65 : y - 48,
+    value: damage,
+    crit: !!crit,
+    life: 0,
+    maxLife: crit ? 48 : (32 + Math.random() * 7)
+  });
+
+  // 히트 파티클 (스파크)
+  for (let i = 0; i < 14; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 4 + Math.random() * 2;
+    hitParticles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0,
+      maxLife: 12
+    });
+  }
+
+  // 화살 삭제 (혹시 중복일 수 있으니 한 번만 더)
+  if (arrowId !== undefined) {
+    let idx = arrows.findIndex(a => a.id === arrowId);
+    if (idx !== -1) arrows.splice(idx, 1);
+  }
+
+  while (hitParticles.length > 300) hitParticles.shift();
+  while (damageParticles.length > 150) damageParticles.shift();
+});
+
+
+function drawDamageParticles(cam) {
+  damageParticles.forEach(p => {
+    let t = p.life / p.maxLife;
+    // 크리티컬이면 팡! 커졌다 점점 작아짐 (scale = 1.8 → 1)
+    let scale = p.crit ? 1.8 - 0.8 * t : 1.0 + 0.3 * (1 - t);
+    let fontSize = (p.crit ? 28 : 18) * scale;
+    let alpha = 1 - t;
+    let px = p.x - cam.x;
+    let py = p.y - cam.y - t * 16; // 살짝 위로 떠오르며 사라짐
+
+    ctx.save();
+    ctx.globalAlpha = 0.97 * alpha;
+
+    if (p.crit) {
+      // 'CRITICAL' 영어 글자
+      ctx.font = `bold ${fontSize * 0.7}px Pretendard, sans-serif`;
+      ctx.fillStyle = "#ffd800";
+      ctx.strokeStyle = "#ff5b00";
+      ctx.lineWidth = 3.2 * scale;
+      ctx.shadowColor = "#fff7b1";
+      ctx.shadowBlur = 13 * scale;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.strokeText("CRITICAL", px, py - 19);
+      ctx.fillText("CRITICAL", px, py - 19);
+
+      // 데미지 숫자 (더 크고 진하게)
+      ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
+      ctx.fillStyle = "#fff24a";
+      ctx.strokeStyle = "#ea9900";
+      ctx.lineWidth = 4 * scale;
+      ctx.shadowColor = "#ffe600";
+      ctx.shadowBlur = 15 * scale;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeText(p.value, px, py);
+      ctx.fillText(p.value, px, py);
+    } else {
+      // 일반 숫자
+      ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
+      ctx.fillStyle = "#ff2424";
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2.5 * scale;
+      ctx.shadowColor = "#ffb9b9";
+      ctx.shadowBlur = 6 * scale;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeText(p.value, px, py);
+      ctx.fillText(p.value, px, py);
+    }
+    ctx.restore();
+  });
+}
+
+
+
+
+
+function updateDamageParticles() {
+  for (let i = damageParticles.length - 1; i >= 0; i--) {
+    let p = damageParticles[i];
+    p.y -= 1.7;       // 위로 스르륵 올라감
+    p.life++;
+    if (p.life > p.maxLife) damageParticles.splice(i, 1);
+  }
+}
+
+
+
+
+
+
+
+
+
+function getSkillCooldownRemaining(skillIndex) {
+  const now = Date.now();
+  const end = skillCooldowns[skillIndex] || 0;
+  return Math.max(0, end - now);
+}
+
+
+
+
+
+
+
+
+    function isZoomed() {
+  return Math.round(window.devicePixelRatio * 100) !== 100;
+}
+
+window.addEventListener('resize', () => {
+  if (isZoomed()) {
+    alert('브라우저 확대/축소가 감지되었습니다! 100%로 맞춰주세요.');
+  }
+});
+
+// [1] 스탯 데이터
+const statListData = [
+  { id: "hp", name: "체력", desc: "1포인트당 최대체력 +10 증가" },
+  { id: "mp", name: "마나", desc: "1포인트당 최대마나 +5 증가" },
+  { id: "str", name: "힘", desc: "1포인트당 공격력 +3 증가" },
+  { id: "int", name: "지능", desc: "1포인트당 회복 -0.1초 증가" },
+  { id: "vit", name: "인내", desc: "1포인트당 방어력 +1 증가" },
+  { id: "agi", name: "민첩", desc: "1포인트당 회피율 +0.1% 증가" },
+  { id: "luk", name: "운", desc: "1포인트당 크리확률 +0.4% 증가" },
+  { id: "acc", name: "명중", desc: "1포인트당 명중률 +0.25% 증가" },
+  { id: "aspd", name: "공속", desc: "1포인트당 공격속도 +0.1% 증가" },
+  { id: "mspd", name: "이속", desc: "1포인트당 이동속도 +0.1 증가" }
+];
+let statPoints = 0;
+let statLevels = {};
+let tempStatLevels = {};
+let tempStatPoints = 0;
+statListData.forEach(stat => {
+  statLevels[stat.id] = 0;
+});
+
+
+statListData.forEach(stat => statLevels[stat.id] = 0);
+
+// [2] 스탯 행 렌더링 함수
+function renderStatRows() {
+  const statList = document.getElementById('statList');
+  statList.innerHTML = '';
+  statListData.forEach(stat => {
+    const row = document.createElement('div');
+    row.className = 'statRow';
+
+        let disabled = '';
+    // 여기서 명중(acc)이 100 이상이면 +버튼 비활성화
+    if (
+  (stat.id === "luk" && (tempStatLevels["luk"] || 0) >= 100) ||
+  (stat.id === "int" && (tempStatLevels["int"] || 0) >= 60) ||
+  (stat.id === "mspd" && (tempStatLevels["mspd"] || 0) >= 100) ||
+  (stat.id === "aspd" && (tempStatLevels["aspd"] || 0) >= 100)
+) {
+  disabled = 'disabled';
+}
+
+
+
+// 제한 표시 결정
+let limitText = "";
+if (stat.id === "int") limitText = '<span style="color:#ff70ec;font-size:0.80em;margin-left:7px;">(Lv60제한)</span>';
+if (["luk", "aspd", "mspd"].includes(stat.id)) limitText = '<span style="color:#ff70ec;font-size:0.80em;margin-left:7px;">(Lv100제한)</span>';
+
+row.innerHTML = `
+  <div class="statInfo">
+    <div class="statName">
+      ${stat.name}
+      <span class="statValue">Lv.${tempStatLevels[stat.id] || 0}</span>
+      ${limitText}
+    </div>
+    <div class="statDesc">${stat.desc}</div>
+  </div>
+  <div class="statCtrl" style="gap:8px;">
+    <button class="plus" data-id="${stat.id}" ${disabled}>+</button>
+  </div>
+`;
+
+
+    statList.appendChild(row);
+  });
+  document.getElementById('statPoints').textContent = tempStatPoints;
+}
+
+
+
+
+renderStatRows();
+
+// [3] +, - 버튼 동작
+document.getElementById('statList').addEventListener('click', function(e){
+    e.preventDefault(); // ← 이거 한 줄만 추가!
+  const id = e.target.dataset.id;
+  if(e.target.classList.contains('plus') && tempStatPoints > 0) {
+    if(id === "int" && tempStatLevels["int"] >= 60) return;
+    if(id === "mspd" && tempStatLevels["mspd"] >= 100) return;
+    tempStatLevels[id]++; tempStatPoints--;
+
+    // === 여기 음 재생 추가! ===
+    let snd = document.getElementById('statUpSound');
+    if (snd) { snd.currentTime = 0; snd.play(); }
+
+
+  }
+  if(e.target.classList.contains('minus') && tempStatLevels[id] > 0) {
+  tempStatLevels[id]--; tempStatPoints++;
+}
+
+  renderStatRows();
+});
+
+statPanel.querySelector('.btn.apply').onclick = function() {
+  socket.emit("setStats", tempStatLevels);
+  statPanel.classList.add('hide');
+  // ====== 아래 코드 추가! ======
+  // 임시값/임시포인트를 statLevels/statPoints로 강제 동기화
+  tempStatLevels = { ...statLevels };
+  tempStatPoints = statPoints;
+  renderStatRows();
+  
+  // === 적용 알림 강제 표시 ===
+  const alertDiv = document.getElementById('statApplyAlert');
+   // 효과음 추가!
+  let snd = document.getElementById('applySound');
+  if (snd) { snd.currentTime = 0; snd.play(); }
+
+  if (alertDiv) {
+    // 먼저 기존에 떠있던거 숨김(클릭 여러번 대응)
+    alertDiv.style.transition = '';
+    alertDiv.style.display = 'none';
+    alertDiv.offsetHeight; // 강제 리플로우로 초기화
+    alertDiv.style.display = 'block';
+    alertDiv.style.opacity = '0.98';
+    setTimeout(() => {
+      alertDiv.style.transition = 'opacity 0.44s';
+      alertDiv.style.opacity = '0';
+      setTimeout(() => {
+        alertDiv.style.display = 'none';
+        alertDiv.style.transition = '';
+      }, 450);
+    }, 1500);
+  }
+   // 👇👇 이 한 줄! 👇👇
+  document.getElementById('statBtn').classList.remove('show');
+};
+
+
+
+
+
+document.getElementById('statBtn').onclick = function() {
+  let snd = document.getElementById('statPanelOpenSound');
+  if (snd) { snd.currentTime = 0; snd.play(); }
+
+  tempStatLevels = { ...statLevels };
+  tempStatPoints = statPoints;
+  renderStatRows();
+  statPanel.classList.remove('hide');
+  // 항상 좌상단 모서리 고정!
+  panelX = 0;
+  panelY = 0;
+  statPanel.style.left = `${panelX}px`;
+  statPanel.style.top = `${panelY}px`;
+  statPanel.style.transform = 'none';
+};
+
+
+
+
+
+
+
+// [5] 닫기 버튼
+
+statPanel.classList.add('hide');
+const closeBtn = statPanel.querySelector('.btn.close');
+closeBtn.addEventListener('click', function(){
+  statPanel.classList.add('hide');
+  // ↓↓↓ 패널 닫을 때도 임시값 초기화!
+  tempStatPoints = statPoints;
+  tempStatLevels = { ...statLevels };
+  renderStatRows();
+});
+
+
+
+// [6] 패널 드래그 이동
+let offsetX = 0, offsetY = 0, isDragging = false;
+let panelX = 14; // 좌측 상단에 딱 붙게
+let panelY = 14;
+statPanel.style.left = `${panelX}px`;
+statPanel.style.top = `${panelY}px`;
+statPanel.style.transform = 'none';
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+statPanel.addEventListener('mousedown', function(e) {
+  if (e.button !== 0) return;
+  isDragging = true;
+  offsetX = e.clientX - statPanel.offsetLeft;
+  offsetY = e.clientY - statPanel.offsetTop;
+  statPanel.classList.add('dragging');
+  e.preventDefault();
+});
+window.addEventListener('mousemove', function(e) {
+  if (!isDragging) return;
+  let nx = e.clientX - offsetX;
+  let ny = e.clientY - offsetY;
+  const minX = 0;
+  const minY = 0;
+  const maxX = window.innerWidth - statPanel.offsetWidth;
+  const maxY = window.innerHeight - statPanel.offsetHeight;
+  nx = clamp(nx, minX, maxX);
+  ny = clamp(ny, minY, maxY);
+  panelX = nx;
+  panelY = ny;
+  statPanel.style.left = `${panelX}px`;
+  statPanel.style.top = `${panelY}px`;
+});
+window.addEventListener('mouseup', function(e) {
+  if (isDragging) {
+    isDragging = false;
+    statPanel.classList.remove('dragging');
+  }
+});
+window.addEventListener('resize', function(){
+  const maxX = window.innerWidth - statPanel.offsetWidth;
+  const maxY = window.innerHeight - statPanel.offsetHeight;
+  panelX = clamp(panelX, 0, maxX);
+  panelY = clamp(panelY, 0, maxY);
+  statPanel.style.left = `${panelX}px`;
+  statPanel.style.top = `${panelY}px`;
+});
+
+
+// 1~70레벨까지 샘플 출력
+for (let lv=1; lv<=70; lv++) {
+  
+}
+
+
+
+
+
+// 1, 10, 50, 51, 70레벨 예시
+[1, 10, 50, 51, 70].forEach(lv => {
+  
+});
+
+
+
+    
+
+    const TILE_SIZE = 32;
+    const MAP_SIZE = 50000;
+    const SPRITE_SIZE = 200;
+    const FRAMES = 8;
+    let arrows = []; // {x, y, vx, vy, frame, anim, dir}
+    let targetPos = null; // {x, y}
+    let mouseWorld = null;
+    let mouseScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 }; // 기본값: 화면 중앙
+    let orbs = [];
+  
+
+     // 서버에서 내 스탯/경험치/HP/MP 등 변경된 정보 수신!
+// 예시: 서버에서 playerStats 받는 곳 등
+socket.on("playerStats", function(data) {
+  statPoints = data.statPoints ?? 0;
+  statLevels = { ...data.statLevels };
+
+  // 패널 닫혀 있을 때만 임시값 동기화
+  if (statPanel.classList.contains('hide')) {
+    tempStatPoints = statPoints;
+    tempStatLevels = { ...statLevels };
+    renderStatRows();
+    document.getElementById('statPoints').textContent = statPoints;
+  }
+
+  // 👇 렙업(=statPoints 증가) 시 스탯버튼 show!
+  if (statPoints > lastStatPoints) {
+    showStatButton();
+
+      let levelupSound = document.getElementById('levelupSound');
+    if (levelupSound) {
+      levelupSound.currentTime = 0;
+      levelupSound.play();
+    }
+
+    levelupParticles.push({
+  id: myId,   // 내 플레이어 id!
+  life: 0,
+  maxLife: 48 // 0.8초 (60fps)
+});
+
+
+
+  }
+  lastStatPoints = statPoints;
+});
+
+function updateLevelupParticles() {
+  for (let i = levelupParticles.length - 1; i >= 0; i--) {
+    let p = levelupParticles[i];
+    p.life++;
+    if (p.life > p.maxLife) levelupParticles.splice(i, 1);
+  }
+}
+
+
+/// ==== 인벤토리 버튼/패널 ====
+const invBtn = document.getElementById('invBtn');
+const invPanel = document.getElementById('invPanel');
+const invGrid = document.getElementById('invGrid');
+const invPageNum = document.getElementById('invPageNum');
+const invPagePrev = document.getElementById('invPagePrev');
+const invPageNext = document.getElementById('invPageNext');
+
+// ==== 인벤토리 페이징 ====
+let invPage = 0; // 0부터 시작 (1페이지)
+let invPageMax = 2; // 총 2페이지 (예시: 2로 설정, 더 늘릴 수도 있음)
+let inventory = Array.from({length:30*invPageMax}, (_,i)=>({id:null, icon:""}));
+// 슬롯 예시 아이콘 (원하면 바꿔도 됨)
+const demoIcons = ["🗡️","🛡️","🍎","🔮","💎","🏹","🥾","🪙"];
+inventory[0] = {id:1, icon:demoIcons[0]};
+inventory[1] = {id:2, icon:demoIcons[3]};
+inventory[37] = {id:101, icon:demoIcons[6]}; // 2페이지 8번째 칸에 아이템
+
+// 페이지 렌더
+function renderInventory() {
+  invGrid.innerHTML = "";
+  let start = invPage * 30;
+  let end = start + 30;
+  for(let i=start; i<end; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'invSlot';
+    slot.innerHTML = inventory[i]?.icon || "";
+    invGrid.appendChild(slot);
+  }
+  invPageNum.textContent = (invPage+1) + " / " + invPageMax;
+  invPagePrev.disabled = (invPage === 0);
+  invPageNext.disabled = (invPage === invPageMax-1);
+}
+renderInventory();
+
+// 버튼 클릭
+invPagePrev.onclick = () => { if(invPage>0){invPage--;renderInventory();}};
+invPageNext.onclick = () => { if(invPage<invPageMax-1){invPage++;renderInventory();}};
+
+// 열고/닫기 버튼
+invBtn.onclick = () => {
+  invPanel.classList.toggle("hide");
+  // 가방 열기 효과음 재생
+  if (!invPanel.classList.contains("hide")) {
+    const snd = document.getElementById("openBagSound");
+    if (snd) { snd.currentTime = 0; snd.play(); }
+  }
+};
+
+invPanel.querySelector('.btn.close').onclick = () => invPanel.classList.add("hide");
+
+// ==== 인벤토리 패널 드래그 & 화면 밖 방지 ====
+let invDrag = {dragging:false, offsetX:0, offsetY:0};
+invPanel.addEventListener("mousedown", e=>{
+  if(e.target.classList.contains('btn')) return;
+  invDrag.dragging = true;
+  invPanel.classList.add("dragging");
+  invDrag.offsetX = e.clientX - invPanel.offsetLeft;
+  invDrag.offsetY = e.clientY - invPanel.offsetTop;
+});
+document.addEventListener("mousemove", e=>{
+  if(!invDrag.dragging) return;
+  let nx = e.clientX - invDrag.offsetX;
+  let ny = e.clientY - invDrag.offsetY;
+  // 화면 경계 체크
+  let maxX = window.innerWidth - invPanel.offsetWidth;
+  let maxY = window.innerHeight - invPanel.offsetHeight;
+  nx = Math.max(0, Math.min(nx, maxX));
+  ny = Math.max(0, Math.min(ny, maxY));
+  invPanel.style.left = nx + "px";
+  invPanel.style.top = ny + "px";
+});
+document.addEventListener("mouseup", ()=>{ invDrag.dragging=false; invPanel.classList.remove("dragging"); });
+
+
+
+
+
+
+
+
+
+function drawLevelupParticles(cam) {
+  levelupParticles.forEach(p => {
+    // 플레이어 오브젝트를 항상 최신 좌표로 참조!
+    let ply = allPlayers[p.id];
+    if (!ply) return;
+    // 머리 위에 띄우기
+    let px = ply.x - cam.x;
+    let py = ply.y - cam.y - 84; // 캐릭터 머리 위 좀 더 위로
+    let t = p.life / p.maxLife;
+    let alpha = 1 - t;
+    let scale = 1.13 + 0.6 * t;
+    ctx.save();
+    ctx.globalAlpha = 0.86 * alpha;
+    ctx.font = `bold ${34*scale}px Pretendard, Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#fffcc2";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = "#ffe85d";
+    ctx.fillText("레벨업!", px, py);
+    ctx.restore();
+  });
+}
+
+
+
+
+function showStatButton() {
+  const btn = document.getElementById('statBtn');
+  btn.classList.add('show');
+}
+
+
+
+closeBtn.addEventListener('click', function(){
+  statPanel.classList.add('hide');
+  document.getElementById('statBtn').classList.remove('show');
+  // ...기존 코드
+});
+
+
+
+
+socket.on("attackResult", function(data) {
+   let attackSound = document.getElementById('attackSound');
+  if (attackSound) {
+    attackSound.currentTime = 0;
+    attackSound.play();
+  }
+  // 모든 공격에 대해 화살을 생성!
+  let startX = data.x;
+  let startY = data.y + 2;
+  let dx = data.mouseX - startX;
+  let dy = data.mouseY - startY;
+  let dist = Math.sqrt(dx*dx + dy*dy);
+  let speed = 22;
+  let vx = dx / dist * speed;
+  let vy = dy / dist * speed;
+  let angle = Math.atan2(dy, dx);
+
+   let maxDist = 700;
+  if (data.skill === 1 || data.skill === 2) maxDist = 4200;
+  arrows.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    frame: 0,
+    anim: 0,
+    angle: angle,
+    hitFade: false,  // 피격 시 true로 변경
+    alpha: 0.92,      // 기본 투명도
+    distance: 0,
+    maxDistance: maxDist,   // ★ 서버와 똑같이!
+    shooterId: data.id,
+    id: makeArrowId()
+  });
+
+
+
+
+  
+
+
+
+
+  if (data.id === myId) {
+    player.state = "attack";
+    player.frame = 0;
+    player.animTimer = 0;
+  }
+});
+
+
+
+
+// 서버에서 구슬 받아오기
+socket.on("orbs", data => {
+  orbs = data;
+});
+
+function requestOrbs() {
+  socket.emit("requestOrbs", { x: player.x, y: player.y });
+}
+
+function drawOrbs(cam) {
+  orbs.forEach(orb => {
+    // 화면에 보이는 것만!
+    let sx = orb.x - cam.x, sy = orb.y - cam.y;
+    if (
+      sx < -30 || sx > canvas.width+30 ||
+      sy < -30 || sy > canvas.height+30
+    ) return;
+
+    // 구슬(노란 원+광채)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, 10, 0, Math.PI*2);
+    ctx.fillStyle = "#ffe76a";
+    ctx.shadowColor = "#ffe26d";
+    ctx.shadowBlur = 15;
+    ctx.globalAlpha = 0.92;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1.0;
+
+    // 테두리/반짝
+    ctx.beginPath();
+    ctx.arc(sx, sy, 13, 0, Math.PI*2);
+    ctx.strokeStyle = "#fff8";
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#845700";
+    ctx.textAlign = "center";
+    ctx.fillText("EXP", sx, sy+4);
+
+    ctx.restore();
+  });
+}
+
+
+
+function updateOrbs() {
+  orbs.forEach(orb => {
+    // 플레이어와 거리 계산
+    const dx = player.x - orb.x;
+    const dy = player.y - orb.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    // 빨려드는 거리(120픽셀 이하)
+    if (dist < 120) {
+      // 플레이어 방향으로 속도 부여 (보통 6~10픽셀/frame)
+      const pullSpeed = 8 + 10*(1 - dist/120); // 가까울수록 빨라짐
+      orb.x += dx / dist * pullSpeed;
+      orb.y += dy / dist * pullSpeed;
+    }
+  });
+}
+
+
+closeBtn.addEventListener('click', function(){
+  statPanel.classList.add('hide');
+  // 스탯버튼 숨기기
+  document.getElementById('statBtn').classList.remove('show');
+});
+
+
+socket.on("playerStats", function(stats) {
+  Object.assign(player, stats);
+  renderStatRows();
+  
+});
+
+socket.on("players", function(list) {
+  players = list;
+  // 내 id(player)만은 덮어쓰지 않기 (또는 반영 안 함)
+});
+
+
+
+
+
+function drawStatusBars() {
+
+
+
+}
+
+
+
+
+
+
+    // 내 플레이어 상태
+    let player = {
+      x: MAP_SIZE / 2, y: MAP_SIZE / 2,
+      dir: "right", state: "idle", frame: 0, animTimer: 0,
+      hp: 50, maxHp: 50,
+      mp: 10, maxMp: 10,
+      exp: 0, maxExp: 30
+    };
+    
+
+    // 서버에서 받는 오브젝트
+    let trees = [];
+    let allPlayers = {}; // { id: {x, y, dir, state, frame} }
+
+    // 소켓 연결
+   
+    socket.on("connect", () => { myId = socket.id; });
+    socket.on("initTrees", (data) => { trees = data; });
+
+
+    socket.on("players", (data) => {
+  allPlayers = data;
+  // 내 player 오브젝트도 서버값으로 동기화
+  // 내 player 오브젝트도 서버값으로 동기화
+if (allPlayers[myId]) {
+  // 죽는음: 기존에 죽은 상태가 아니었고, 이제 죽었으면 소리
+  if (player.state !== "dead" && allPlayers[myId].state === "dead") {
+    let deathSound = document.getElementById("deathSound");
+    if (deathSound) {
+      deathSound.currentTime = 0;
+      deathSound.play();
+    }
+  }
+  Object.assign(player, allPlayers[myId]);
+}
+
+
+
+  renderRanking(); // 랭킹 실시간 갱신!
+
+});
+
+
+    // 캔버스 리사이즈
+    function resizeCanvas() {
+  // 디바이스 픽셀비율 (ex. 레티나면 2, 보통 1)
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // 리셋
+  ctx.scale(dpr, dpr); // 모든 그리기 1:1 매칭!
+}
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // 키 입력
+    const keys = {};
+    window.addEventListener("keydown", e => { keys[e.key] = true; });
+    window.addEventListener("keyup", e => { keys[e.key] = false; });
+
+
+// ★ 캐릭터 dir 계산 함수 (좌/우)
+function getDirectionFromMouse(playerX, playerY, mouseX, mouseY, prevDir = "right") {
+  const dx = mouseX - playerX, dy = mouseY - playerY;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+  return prevDir;
+}
+
+
+
+
+// 일반공격
+canvas.addEventListener("mousedown", function(e) {
+  if (e.button === 0 && !autoOrb) { // 0=왼쪽버튼
+    const now = Date.now();
+    if (now < playerAttackCooldownEnd) return; // 쿨타임 중이면 무시
+
+    // 서버로 공격 요청
+    socket.emit("attack", {
+      dir: player.dir,
+      mouseX: mouseWorld?.x || player.x + 1,
+      mouseY: mouseWorld?.y || player.y
+    });
+    // 서버와 동일한 공식 (aspd 적용)
+    playerAttackCooldownEnd = now + 1000 / (statLevels.aspd ? (1 + statLevels.aspd * 0.01) : 1.0);
+  }
+
+  // 오토모드시: 오른쪽 클릭(e.button===2)에서는 경고 띄우지 않음!
+  if (autoOrb) {
+    if (e.button !== 2) showAutoWarning();
+    return;
+  }
+
+
+
+
+  if (autoOrb) { showAutoWarning(); return; }
+  if (autoOrb) return; // 오토 ON이면 무시
+  if (e.button !== 0 || player.state === "attack" || player.state === "dead") return;
+  if (player.mp < 3) return;
+  let cam = getCamera();
+  let mouseX = e.clientX + cam.x;
+  let mouseY = e.clientY + cam.y;
+  let dir = getDirectionFromMouse(player.x, player.y, mouseX, mouseY, player.dir);
+  player.dir = dir; // 즉시 반영!
+  socket.emit("attack", { mouseX, mouseY, dir });
+    let snd = document.getElementById('attackSound');
+  if (snd) {
+    snd.currentTime = 0; // 연타시 항상 처음부터
+    snd.play();
+  }
+});
+
+
+
+
+
+let lastOrbReq = 0;
+
+    // 이동/상태 업데이트
+    
+      function update() {
+
+  // 1. 오토모드면, 항상 mouseScreen 값을 오토타겟으로 덮어쓰기!
+  
+  if (autoOrb && player) {
+  let cam = getCamera();
+  let target = null;
+  let targetType = "";
+  let minDist = 999999;
+
+  // ⭐ 1. 1000픽셀 이내 오브 먼저 탐색
+  let nearestOrb = null, orbDist = 999999;
+  for (let orb of orbs) {
+    let dx = orb.x - player.x, dy = orb.y - player.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 1000 && dist < orbDist) {
+      orbDist = dist;
+      nearestOrb = orb;
+    }
+  }
+  if (nearestOrb) {
+    target = nearestOrb;
+    targetType = "orb";
+    minDist = orbDist;
+  } else {
+    // ⭐ 2. 오브가 없으면 몬스터 탐색 (기존대로)
+    for (let b of butterflies) {
+      if (b.state !== "dead" && b.hp > 0) {
+        let dx = b.x - player.x, dy = b.y - player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < minDist) {
+          minDist = dist;
+          target = b;
+          targetType = "monster";
+        }
+      }
+    }
+  }
+  // 나머지 코드는 기존과 동일!
+  if (target) {
+    if (targetType === "monster") {
+      let dx = target.x - player.x, dy = target.y - player.y, dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 500) {
+        mouseScreen.x = target.x - cam.x;
+        mouseScreen.y = target.y - cam.y;
+      } else {
+        mouseScreen.x = player.x - cam.x;
+        mouseScreen.y = player.y - cam.y;
+      }
+      if (dist < 500) {
+        const now = Date.now();
+        if (now >= playerAttackCooldownEnd && player.state !== "attack" && player.state !== "dead") {
+          socket.emit("attack", {
+            dir: dx > 0 ? "right" : "left",
+            mouseX: target.x,
+            mouseY: target.y
+          });
+          playerAttackCooldownEnd = now + 1000 / (statLevels.aspd ? (1 + statLevels.aspd * 0.01) : 1.0);
+        }
+      }
+    } else if (targetType === "orb") {
+      mouseScreen.x = target.x - cam.x;
+      mouseScreen.y = target.y - cam.y;
+      let dx = target.x - player.x, dy = target.y - player.y, dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 19) socket.emit("pickupOrb", target.id);
+    }
+  } else {
+    // 타겟 없으면 대기
+    mouseScreen.x = MAP_SIZE/2 - cam.x;
+    mouseScreen.y = MAP_SIZE/2 - cam.y;
+    requestOrbs();
+  }
+}
+
+
+
+
+
+
+
+
+
+      if (Date.now() - lastOrbReq > 400) {
+        requestOrbs();
+        lastOrbReq = Date.now();
+        }
+
+         // 매 프레임마다 마우스 위치를 월드 좌표로 변환해서 갱신
+  let cam = getCamera();
+  mouseWorld = {
+    x: mouseScreen.x + cam.x,
+    y: mouseScreen.y + cam.y
+  };
+
+      let moved = false;
+     speed = player.mspd || 2; // 서버에서 받은 mspd 값을 항상 사용
+     if (rightMouseDown && player.mp > 0) speed *= 2; // 달리기 시 2배
+
+
+
+   const STOP_DISTANCE = 60; // 원하는 거리(px)
+
+if (player.state !== "attack" && player.state !== "dead" && mouseWorld) {
+  let dx = mouseWorld.x - player.x;
+  let dy = mouseWorld.y - player.y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist > STOP_DISTANCE) {
+    player.x += dx / dist * speed;
+    player.y += dy / dist * speed;
+    moved = true;
+
+    // 방향 결정 (좌/우 범위 더 좁힘)
+    const LR_PRIORITY = 0.1;
+    if (Math.abs(dx) > LR_PRIORITY * Math.abs(dy)) {
+      player.dir = dx > 0 ? "right" : "left";
+    }
+  }
+
+  // 여기 발소리!
+  if (moved && player.state !== "attack" && player.state !== "dead") {
+    let footstepSound = document.getElementById("footstepSound");
+    if (footstepSound && footstepSound.paused) {
+      footstepSound.volume = 0.6;
+      footstepSound.play();
+    }
+  }
+}
+
+      
+    // 오른쪽 마우스 누른 동안, MP -2씩 깎음(0.2초 간격 추천)
+  if (rightMouseDown && player.mp > 0) {
+    mpTick++;
+    if (mpTick >= 12) { // 약 0.2초마다 (60fps 기준)
+      socket.emit("mpDown", 2); // 서버에 MP 깎아달라고 요청
+      mpTick = 0;
+    }
+  } else {
+    mpTick = 0;
+  }
+
+
+  // update() 함수 안쪽 (플레이어 상태/이동 처리 이후에!)
+if (autoOrb && window.orbs && player) {
+  for (let orb of orbs) {
+    let dx = orb.x - player.x, dy = orb.y - player.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    // 구슬 근처(19px) 이내면 바로 먹기
+    if (dist < 19) {
+      socket.emit("pickupOrb", orb.id);
+      break; // 한 번만!
+    }
+  }
+}
+
+updateEvadeParticles();
+
+
+
+
+      // 맵 반복 워프존 효과!
+if (player.x < 0) player.x = MAP_SIZE;
+if (player.x > MAP_SIZE) player.x = 0;
+if (player.y < 0) player.y = MAP_SIZE;
+if (player.y > MAP_SIZE) player.y = 0;
+
+
+
+      // 사망(X키)
+      if ((keys["x"] || keys["X"]) && player.state !== "dead") {
+        player.state = "dead"; player.frame = 0; player.animTimer = 0;
+
+      }
+        else if (player.state === "dead") {
+        let spd = 6;
+        if (++player.animTimer >= spd) {
+          player.animTimer = 0;
+          if (player.frame < FRAMES-1) player.frame++;
+
+      
+        }
+        // 죽으면 마지막 프레임 고정
+        if (player.frame >= FRAMES-1) player.frame = FRAMES-1;
+      }
+      
+      socket.emit("update", {
+  x: player.x, y: player.y, dir: player.dir
+  // state: player.state, frame: player.frame  <<== 삭제!
+});
+
+
+// 우측상단 맵좌표 패널 실시간 갱신!
+document.getElementById("mapCoordText").textContent =
+  `${Math.round(player.x)}:${Math.round(player.y)}`;
+
+
+    }
+
+    
+
+    // 카메라
+    function getCamera() {
+      return { x: player.x - canvas.width / 2, y: player.y - canvas.height / 2 };
+    }
+
+    // 플레이어별 애니메이션 상태 저장
+    let animFrames = {};
+
+    function drawPlayers() {
+      Object.entries(allPlayers).forEach(([id, p]) => {
+        if (!p) return;
+
+        // 카메라 기준 좌표 변환
+               let px = Math.round(p.x - (player.x - canvas.width/2));
+               let py = Math.round(p.y - (player.y - canvas.height/2));
+
+          
+    if (id === myId && glowTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.60 * (glowTimer/18); // 사라지는 효과
+      ctx.beginPath();
+      ctx.arc(px, py, 56 + glowTimer*1.5, 0, Math.PI*2);
+      let grad = ctx.createRadialGradient(px, py, 22, px, py, 56 + glowTimer*1.5);
+      grad.addColorStop(0.1, "#ffe26d99");
+      grad.addColorStop(0.4, "#ffe26d33");
+      grad.addColorStop(1.0, "rgba(255,240,120,0)");
+      ctx.fillStyle = grad;
+      ctx.shadowColor = "#ffe26d";
+      ctx.shadowBlur = 22 + glowTimer*0.7;
+      ctx.fill();
+      ctx.restore();
+    }
+      
+
+    // drawPlayers 함수 내부 (닉네임 위에 추가)
+ctx.save();
+ctx.globalAlpha = 0.94;
+ctx.font = "bold 15px Pretendard, Arial";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillStyle = "#ffd465";
+ctx.shadowColor = "#000";
+ctx.shadowBlur = 2.2;
+ctx.fillText(`레벨: ${p.level ?? 1}`, px, py - 49); // 닉네임보다 위(y-49)
+ctx.restore();
+
+
+    // drawPlayers 함수 내부 (각 p 그린 후)
+      ctx.font = "bold 16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = id === myId ? "#fff" : "#ff3333";
+      const name = p.name || (id === myId ? nickname : id.slice(0, 8));
+      ctx.fillText(name, px, py - 28);
+
+
+        // 애니메이션 상태, 방향
+        let dir = p.dir === "left" ? 1 : 0;
+        let state = p.state || "idle";
+
+        // 스프라이트 y 인덱스
+        let sy = 0;
+        if (state === "move") sy = dir;
+        else if (state === "idle") sy = dir+2;
+        else if (state === "attack") sy = dir+4;
+        else if (state === "dead") sy = 6;
+
+        // 내 플레이어는 update()에서 직접 프레임을 돌림
+        // 타 유저만 동기화 데이터 기반 애니메이션
+        let frame = 0;
+        if (id === myId) {
+          frame = player.frame;
+        } else {
+          if (!animFrames[id]) animFrames[id] = { frame: 0, animTimer: 0 };
+          let anim = animFrames[id];
+          let spd = 0;
+          if (state === "move") spd = 4;
+          else if (state === "idle") spd = 10;
+          else if (state === "attack") spd = 3;
+          else if (state === "dead") spd = 6;
+
+          if (state !== "dead") {
+            if (++anim.animTimer >= spd) {
+              anim.animTimer = 0;
+              if (state === "attack") {
+                if (anim.frame < FRAMES-1) anim.frame++;
+              } else {
+                anim.frame = (anim.frame+1)%FRAMES;
+              }
+            }
+          } else {
+            if (anim.frame < FRAMES-1) anim.frame++;
+          }
+          // 공격/사망 외에는 동기화된 프레임 사용
+          if (state !== "attack" && state !== "dead") {
+            anim.frame = typeof p.frame === "number" ? p.frame : anim.frame;
+          }
+          frame = anim.frame;
+        }
+
+
+          
+
+        let sx = frame * SPRITE_SIZE;
+
+      
+
+
+      ctx.drawImage(
+        scoutImg,
+            sx, sy*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+            px - SPRITE_SIZE/2, py - SPRITE_SIZE/2, SPRITE_SIZE, SPRITE_SIZE
+        );
+
+      });
+
+    }
+    
+
+
+
+    ctx.imageSmoothingEnabled = false;
+
+  // === 스킬 시전 함수 (반드시 전역!)
+function castSkill(skillNum) {
+  let cam = getCamera();
+  let mouseX = mouseScreen.x + cam.x;
+  let mouseY = mouseScreen.y + cam.y;
+  let dir = getDirectionFromMouse(player.x, player.y, mouseX, mouseY, player.dir);
+  player.dir = dir; // 즉시 반영!
+  socket.emit("castSkill", { skill: skillNum, mouseX, mouseY, dir });
+}
+
+// === 스킬 단축키(1,2) & 쿨/마나 체크
+// === 스킬 단축키(1,2)
+window.addEventListener("keydown", function(e) {
+  if (autoOrb) { showAutoWarning(); return; }
+  if (autoOrb) return;
+  if (document.activeElement === chatInput) return;
+  if (player.state === "attack" || player.state === "dead") return;
+  let now = Date.now();
+
+  if (e.key === "1") {
+    if (skillCooldowns[0] > now || player.mp < 20) return;
+    castSkill(1);
+    // === 여기! 1번 스킬(강격) 효과음 재생 ===
+    let snd = document.getElementById('skill1Sound');
+    if (snd) {
+      snd.currentTime = 0;
+      snd.play();
+    }
+  }
+
+  if (e.key === "2") {
+    if (skillCooldowns[1] > now || player.mp < 30) return;
+    castSkill(2);
+    let snd = document.getElementById('skill2Sound');
+    if (snd) {
+      snd.currentTime = 0;
+      snd.play();
+    }
+  }
+});
+
+
+
+function drawButterflies(cam) {
+  butterflies.forEach(b => {
+    if (b.state === "dead") {
+      ctx.save();
+      let alpha = 1.0;
+      if (b.deadTimer !== undefined)
+        alpha = Math.max(0, 1 - (b.deadTimer || 0) / 60);
+      ctx.globalAlpha = alpha;
+      drawButterflyDead(ctx, b.x, b.y, 3, cam);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    } else {
+      drawButterflyMove(ctx, b.x, b.y, b.dir, b.frame, cam);
+      drawButterflyStatus(ctx, b, cam); // HP바 + 이름 한번에
+    }
+  });
+}
+
+function drawButterflyStatus(ctx, b, cam) {
+  // 중심 좌표
+  let bx = b.x - cam.x;
+  let by = b.y - cam.y - BUTTERFLY_SIZE * 0.65;
+  let width = 34, height = 6;
+  let ratio = Math.max(0, Math.min(1, b.hp / b.maxHp));
+  ctx.save();
+
+  // 1. HP바 (맨 위)
+  ctx.globalAlpha = 0.92;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#211a22";
+  ctx.fillRect(bx - width/2 - 1, by - 32, width+2, height+2); // HP바 y위치: by - 32
+  ctx.fillStyle = "#ff7272";
+  ctx.fillRect(bx - width/2, by - 31, width * ratio, height);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(bx - width/2 - 1, by - 32, width+2, height+2);
+
+  // 2. 이름 (HP바 바로 아래)
+  ctx.font = 'bold 18px Pretendard, Arial, sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "#ffd8fa";
+  ctx.shadowColor = "#ad66c5";
+  ctx.shadowBlur = 5;
+  ctx.fillText("팅커벨", bx, by - 1); // HP바 바로 아래
+
+  ctx.restore();
+}
+
+
+
+
+
+
+    // 메인루프
+    function draw() {
+      updateOrbs();
+      update();
+    
+      let cam = getCamera();
+
+  
+
+
+      // 바닥 타일
+      for (
+        let y = -TILE_SIZE; y < canvas.height + TILE_SIZE; y += TILE_SIZE
+      ) {
+        for (
+          let x = -TILE_SIZE; x < canvas.width + TILE_SIZE; x += TILE_SIZE
+        ) {
+          let mapX = Math.floor((x + cam.x) / TILE_SIZE) * TILE_SIZE;
+          let mapY = Math.floor((y + cam.y) / TILE_SIZE) * TILE_SIZE;
+          ctx.drawImage(
+            grassImg,
+            mapX - cam.x,
+            mapY - cam.y,
+            TILE_SIZE, TILE_SIZE
+          );
+        }
+      }
+     
+
+   function drawArrows(cam) {
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    let a = arrows[i];
+
+    // hitFade는 기존대로 사용
+    if (a.hitFade) {
+      a.alpha -= 0.08;
+      if (a.alpha <= 0.05) {
+        arrows.splice(i, 1);
+        continue;
+      }
+    }
+
+    // 이동
+    a.x += a.vx;
+    a.y += a.vy;
+    a.life -= Math.sqrt(a.vx * a.vx + a.vy * a.vy);
+
+    // 애니메이션
+    a.frameTimer = (a.frameTimer || 0) + 1;
+    if (a.frameTimer > 4) {
+      a.frame = ((a.frame || 0) + 1) % ARROW_FRAME_COUNT;
+      a.frameTimer = 0;
+    }
+
+    // === 나비(몬스터) 충돌 체크 ===
+    let hitSomething = false;
+    for (let j = 0; j < butterflies.length; j++) {
+      let b = butterflies[j];
+      if (b.state === "dead" || b.hp <= 0) continue;
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < (b.hitbox?.radius || 22)) {
+        arrows.splice(i, 1);
+        hitSomething = true;
+        break;
+      }
+    }
+    if (hitSomething) continue;
+
+    // === 타 플레이어 충돌 체크 (내가 쏜 화살만) ===
+    if (a.shooterId === myId) {
+      let hitPlayer = false;
+      Object.entries(allPlayers).forEach(([id, p]) => {
+        if (id === myId || hitPlayer) return;
+        let dx = p.x - a.x, dy = p.y - a.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 26) {
+          arrows.splice(i, 1);
+          hitPlayer = true;
+        }
+      });
+      if (hitPlayer) continue;
+    }
+
+    // === (여기!) 상대방 화살이 내 캐릭터에 명중하면 즉시 투명+삭제 ===
+    if (a.shooterId !== myId) {
+      let dx = player.x - a.x;
+      let dy = player.y - a.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 26) {
+        a.alpha = 0;              // 즉각 투명!
+        arrows.splice(i, 1);      // 즉시 삭제!
+        continue;                 // 다음 화살
+      }
+    }
+
+    ctx.save();
+    if (a.shooterId !== myId) {
+      ctx.globalAlpha = 0.3;
+    } else {
+      ctx.globalAlpha = a.alpha ?? 0.92;
+    }
+    ctx.translate(a.x - cam.x, a.y - cam.y);
+    ctx.rotate((a.angle || 0) - Math.PI/2 + Math.PI);
+    ctx.drawImage(
+      arrowImg,
+      a.frame * ARROW_FRAME_W, 0, ARROW_FRAME_W, ARROW_FRAME_H,
+      -ARROW_FRAME_W/2, -ARROW_FRAME_H/2, ARROW_FRAME_W, ARROW_FRAME_H
+    );
+    ctx.restore();
+
+    if (a.hitFade) {
+      a.alpha = (a.alpha || 0.92) * 0.86;
+      if (a.alpha < 0.07) arrows.splice(i, 1);
+    }
+
+    if (a.life < 0) arrows.splice(i, 1);
+  }
+}
+
+
+
+
+
+
+
+
+
+     
+      // === 꽃 그리기 ===
+function drawFlowers(flowerArr, img, cam) {
+  flowerArr.forEach(f => {
+    const sx = f.x - cam.x - img.width / 2;
+    const sy = f.y - cam.y - img.height + 10; // 나무보다 좀 더 낮게
+    ctx.drawImage(img, sx, sy);
+  });
+}
+
+// draw 함수 안에서 호출 (cam 변수 이미 선언되어 있음)
+drawFlowers(yellowFlowers, yellowFlowerImg, cam);
+drawFlowers(redFlowers, redFlowerImg, cam);
+drawFlowers(blueFlowers, blueFlowerImg, cam);
+drawFlowers(whiteFlowers, whiteFlowerImg, cam);
+
+
+
+     // 불화살 먼저 그림
+      
+      updateLevelupParticles(); // ← 추가!
+  
+      drawLevelupParticles(cam); // ← 추가!
+
+      drawOrbs(cam);   // drawPlayers() 전에 추가!
+      checkOrbPickup(); // draw()에서 호출!
+
+      drawEvadeParticles(cam);
+      drawArrows(cam);
+
+      updateHitParticles();
+      updateDamageParticles();
+    
+
+      drawHitParticles(cam);  // 플레이어들(스프라이트)
+      
+       drawPlayers();
+      drawButterflies(cam);
+      drawButterflyProjectiles(cam);
+
+      drawDamageParticles(cam);
+
+     
+      
+
+     
+
+      
+
+      
+      
+      // === draw 함수 내에 butterflies 몬스터 그리기 ===
+
+
+
+
+       // 나무
+      trees.forEach(tree => {
+        ctx.drawImage(
+          treeImg,
+          tree.x - cam.x - treeImg.width / 2,
+          tree.y - cam.y - treeImg.height
+        );
+      });
+
+      // --- 데시보드 프레임 ---
+const dashW = 500, dashH = 200;
+const dashX = (canvas.width - dashW) / 2;
+const dashY = canvas.height - dashH + 10;
+ctx.save();
+ctx.globalAlpha = 1.0;
+ctx.drawImage(dashboardImg, dashX, dashY, dashW, dashH);
+ctx.restore();
+      
+
+const hpX = 520, hpY = canvas.height - 95;
+const mpX = canvas.width - 520, mpY = canvas.height - 95;
+// [HP] 둥근 공
+const hpRatio = Math.max(0, Math.min(1, player.hp / player.maxHp));
+// --- HP 오브(디아 감성) ---
+const circleR = 53; // 살짝 키움
+const orbShadow = 10; // 그림자 깊이
+
+
+
+// 1. 어두운 음영(외곽+중심)
+ctx.save();
+let grad = ctx.createRadialGradient(hpX, hpY, circleR-25, hpX, hpY, circleR+orbShadow);
+grad.addColorStop(0, "#6d0000");
+grad.addColorStop(0.35, "#ae1818");
+grad.addColorStop(0.7, "#460808");
+grad.addColorStop(1, "#220202a0");
+ctx.beginPath();
+ctx.arc(hpX, hpY, circleR+orbShadow, 0, Math.PI*2);
+ctx.fillStyle = grad;
+ctx.globalAlpha = 1.0;
+ctx.fill();
+ctx.restore();
+
+// 2. HP 게이지 채우기 (진한 붉은 arc)
+ctx.save();
+ctx.beginPath();
+ctx.arc(hpX, hpY, circleR-7, 0, Math.PI*2);
+ctx.closePath();
+ctx.clip();
+
+let hpFillH = 2*(circleR-7) * hpRatio;
+let topY = hpY + (circleR-7) - hpFillH;
+let hpBarGrad = ctx.createLinearGradient(hpX, hpY - (circleR-7), hpX, hpY + (circleR-7));
+hpBarGrad.addColorStop(0, "#ffadad");
+hpBarGrad.addColorStop(0.3, "#f12836");
+hpBarGrad.addColorStop(1, "#990a0a");
+ctx.globalAlpha = 0.98;
+ctx.fillStyle = hpBarGrad;
+ctx.fillRect(hpX-(circleR-7), topY, 2*(circleR-7), hpFillH);
+ctx.restore();
+
+// 3. 오브 테두리 (광택)
+ctx.save();
+ctx.beginPath();
+ctx.arc(hpX, hpY, circleR, 0, Math.PI*2);
+ctx.lineWidth = 5.5;
+ctx.strokeStyle = "#fff5";
+ctx.shadowColor = "#ff8088";
+ctx.shadowBlur = 12;
+ctx.globalAlpha = 0.38;
+ctx.stroke();
+ctx.restore();
+
+// 4. 상단 하이라이트(빛 반사 느낌)
+ctx.save();
+ctx.globalAlpha = 0.27;
+ctx.beginPath();
+ctx.arc(hpX, hpY-circleR/2.5, circleR/1.7, Math.PI*0.9, Math.PI*2.1, false);
+ctx.strokeStyle = "#fff";
+ctx.lineWidth = 8;
+ctx.shadowColor = "#fff";
+ctx.shadowBlur = 14;
+ctx.stroke();
+ctx.restore();
+
+// 5. HP 텍스트
+ctx.save();
+ctx.font = "bold 20px 'Pretendard', Arial, sans-serif";
+ctx.fillStyle = "#fff";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.shadowColor = "#c23";
+ctx.shadowBlur = 8;
+ctx.fillText(`${player.hp} / ${player.maxHp}`, hpX, hpY+5);
+ctx.shadowBlur = 0;
+ctx.restore();
+
+const mpRatio = Math.max(0, Math.min(1, player.mp / player.maxMp));
+
+// --- MP 오브(디아 감성) ---
+let mpGrad = ctx.createRadialGradient(mpX, mpY, circleR-25, mpX, mpY, circleR+orbShadow);
+mpGrad.addColorStop(0, "#173c72");
+mpGrad.addColorStop(0.35, "#1672ca");
+mpGrad.addColorStop(0.7, "#061236");
+mpGrad.addColorStop(1, "#10203ba0");
+
+// 1. 어두운 음영(외곽+중심)
+ctx.save();
+ctx.beginPath();
+ctx.arc(mpX, mpY, circleR+orbShadow, 0, Math.PI*2);
+ctx.fillStyle = mpGrad;
+ctx.globalAlpha = 1.0;
+ctx.fill();
+ctx.restore();
+
+// 2. MP 게이지 채우기 (진한 파랑 arc)
+// ----- MP 오브 (위에서 아래로) -----
+// (1) 어두운 음영(외곽+중심)
+let mpRadialGrad = ctx.createRadialGradient(mpX, mpY, circleR-25, mpX, mpY, circleR+orbShadow);
+mpRadialGrad.addColorStop(0, "#173c72");
+mpRadialGrad.addColorStop(0.35, "#1672ca");
+mpRadialGrad.addColorStop(0.7, "#061236");
+mpRadialGrad.addColorStop(1, "#10203ba0");
+
+ctx.save();
+ctx.beginPath();
+ctx.arc(mpX, mpY, circleR+orbShadow, 0, Math.PI*2);
+ctx.fillStyle = mpRadialGrad;
+ctx.globalAlpha = 1.0;
+ctx.fill();
+ctx.restore();
+
+// (2) MP 게이지 (위에서 아래로!)
+ctx.save();
+ctx.beginPath();
+ctx.arc(mpX, mpY, circleR-7, 0, Math.PI*2);
+ctx.closePath();
+ctx.clip();
+
+let mpFillH = 2*(circleR-7) * mpRatio;
+let mpTopY = mpY + (circleR-7) - mpFillH;
+
+// ❗여기서 Linear로! (중복 변수명 방지)
+let mpBarGrad = ctx.createLinearGradient(mpX, mpY - (circleR-7), mpX, mpY + (circleR-7));
+mpBarGrad.addColorStop(0, "#e2fdff");
+mpBarGrad.addColorStop(0.3, "#39c6ff");
+mpBarGrad.addColorStop(1, "#0955aa");
+ctx.globalAlpha = 0.96;
+ctx.fillStyle = mpBarGrad;
+ctx.fillRect(mpX-(circleR-7), mpTopY, 2*(circleR-7), mpFillH);
+ctx.restore();
+
+
+
+// 3. 오브 테두리 (광택)
+ctx.save();
+ctx.beginPath();
+ctx.arc(mpX, mpY, circleR, 0, Math.PI*2);
+ctx.lineWidth = 5.5;
+ctx.strokeStyle = "#fff8";
+ctx.shadowColor = "#38e2ff";
+ctx.shadowBlur = 11;
+ctx.globalAlpha = 0.36;
+ctx.stroke();
+ctx.restore();
+
+// 4. 상단 하이라이트(빛 반사 느낌)
+ctx.save();
+ctx.globalAlpha = 0.18;
+ctx.beginPath();
+ctx.arc(mpX, mpY-circleR/2.5, circleR/1.7, Math.PI*0.9, Math.PI*2.1, false);
+ctx.strokeStyle = "#fff";
+ctx.lineWidth = 8;
+ctx.shadowColor = "#fff";
+ctx.shadowBlur = 13;
+ctx.stroke();
+ctx.restore();
+
+// 5. MP 텍스트
+ctx.save();
+ctx.font = "bold 20px 'Pretendard', Arial, sans-serif";
+ctx.fillStyle = "#fff";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.shadowColor = "#2488c2";
+ctx.shadowBlur = 8;
+ctx.fillText(`${player.mp} / ${player.maxMp}`, mpX, mpY+5);
+ctx.shadowBlur = 0;
+ctx.restore();
+
+// --- 캔버스 하단 중앙에 EXP 바 ---
+const expBarW = 208, expBarH = 20;
+const expBarX = (canvas.width - expBarW) / 2;
+const expBarY = canvas.height - expBarH; // 바로 하단에 딱!
+
+const expRatio = Math.max(0, Math.min(1, player.exp / player.maxExp));
+
+// 다크+유광 배경
+ctx.save();
+let barGrad = ctx.createLinearGradient(expBarX, expBarY, expBarX + expBarW, expBarY + expBarH);
+barGrad.addColorStop(0, "#18181b");
+barGrad.addColorStop(0.4, "#26263c");
+barGrad.addColorStop(1, "#10101a");
+ctx.fillStyle = barGrad;
+ctx.globalAlpha = 0.94;
+ctx.fillRect(expBarX, expBarY, expBarW, expBarH);
+
+// 외곽선(네온)
+ctx.globalAlpha = 1.0;
+ctx.lineWidth = 3.2;
+ctx.strokeStyle = "#4537aa";
+ctx.shadowColor = "#44f9ffcc";
+ctx.shadowBlur = 11;
+ctx.strokeRect(expBarX, expBarY, expBarW, expBarH);
+
+// 경험치 채우기 (구슬 색상과 동일)
+let fillGrad = ctx.createLinearGradient(expBarX, expBarY, expBarX + expBarW, expBarY + expBarH);
+fillGrad.addColorStop(0, "#ffe146");
+fillGrad.addColorStop(0.65, "#ffc42c");
+fillGrad.addColorStop(1, "#ff8631");
+ctx.globalAlpha = 0.97;
+ctx.fillStyle = fillGrad;
+ctx.fillRect(expBarX + 2, expBarY + 2, (expBarW - 4) * expRatio, expBarH - 4);
+
+
+// 텍스트
+ctx.globalAlpha = 1.0;
+ctx.font = "bold 15px Pretendard, Arial, sans-serif";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillStyle = "#eaffff";
+ctx.shadowColor = "#23263e";
+ctx.shadowBlur = 2.2;
+ctx.fillText(`EXP  ${player.exp} / ${player.maxExp}`, expBarX + expBarW / 2, expBarY + expBarH / 2);
+ctx.restore();
+
+function drawSkillSlot(x, y, num, selected, cooldown, total) {
+  // 1. 슬롯 테두리 (기존 코드)
+  ctx.save();
+  ctx.globalAlpha = 0.97;
+  ctx.lineWidth = selected ? 4 : 2.6;
+  ctx.strokeStyle = selected ? "#ffe44a" : "#eeeefa";
+  ctx.shadowColor = selected ? "#ffecb2" : "#b7e7ff";
+  ctx.shadowBlur = selected ? 10 : 4;
+  ctx.beginPath();
+  const radius = 12;
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + 50 - radius, y);
+  ctx.quadraticCurveTo(x + 50, y, x + 50, y + radius);
+  ctx.lineTo(x + 50, y + 50 - radius);
+  ctx.quadraticCurveTo(x + 50, y + 50, x + 50 - radius, y + 50);
+  ctx.lineTo(x + radius, y + 50);
+  ctx.quadraticCurveTo(x, y + 50, x, y + 50 - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+
+  // === [★여기에 추가!] 쿨타임 원형 게이지 ===
+  if (cooldown > 0 && total > 0) {
+    const ratio = Math.max(0, Math.min(1, cooldown / total));
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + 25, y + 25);
+    ctx.arc(
+      x + 25, y + 25, 23, // 중심, 반지름
+      -Math.PI / 2,
+      -Math.PI / 2 + 2 * Math.PI * ratio,
+      false
+    );
+    ctx.closePath();
+    ctx.globalAlpha = 0.40;
+    ctx.fillStyle = "#255c97";
+    ctx.fill();
+
+    // 외곽 라인
+    ctx.beginPath();
+    ctx.arc(
+      x + 25, y + 25, 23.7,
+      -Math.PI / 2,
+      -Math.PI / 2 + 2 * Math.PI * ratio,
+      false
+    );
+    ctx.lineWidth = 5.2;
+    ctx.strokeStyle = "#59deff";
+    ctx.globalAlpha = 0.7;
+    ctx.stroke();
+    ctx.restore();
+  }
+  // === [여기까지] ===
+
+  // 2. 숫자
+  ctx.save();
+  ctx.font = "bold 14px Pretendard, Arial, sans-serif";
+  ctx.fillStyle = "#ffe970";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+  ctx.shadowColor = "#2c2a1f";
+  ctx.shadowBlur = 4;
+  ctx.globalAlpha = 0.93;
+  ctx.fillText(num, x + 50 - 6, y + 2);
+  ctx.restore();
+}
+
+
+
+// skillCooldowns = [타임스탬프1, 타임스탬프2] (전역)
+const now = Date.now();
+
+const slot1Cooldown = Math.max(0, skillCooldowns[0] - now);
+const slot2Cooldown = Math.max(0, skillCooldowns[1] - now);
+
+// 예: 쿨타임 전체(ms)
+const slot1Total = 3000; // 3초
+const slot2Total = 3000; // 5초
+// 스킬슬롯 위치
+const slotY = expBarY - 58; // 경험치바 위에 58px 띄우기(적당히 조절)
+const slot1X = expBarX - -30; // 경험치바 좌측에
+const slot2X = expBarX + expBarW - 84; // 경험치바 우측에
+
+// draw 함수(게임 루프에서 매 프레임마다 호출되는 곳)에 아래 코드 삽입!
+
+
+// 아이콘도 위에 그려주기
+ctx.drawImage(skillIcon1, slot1X, slotY, 50, 50);
+ctx.drawImage(skillIcon2, slot2X, slotY, 50, 50);
+
+// drawSkillSlot(x, y, num, selected, cooldown, total)
+drawSkillSlot(slot1X, slotY, 1, false, slot1Cooldown, slot1Total);
+drawSkillSlot(slot2X, slotY, 2, false, slot2Cooldown, slot2Total);
+
+// === 서버에서 스킬 쿨타임 정보 받기 ===
+socket.on("skillCooldown", ({skill, cooldownEnd}) => {
+  skillCooldowns[skill - 1] = cooldownEnd;
+});
+
+
+      
+      if (glowTimer > 0) glowTimer--;
+
+      drawStatusBars();
+      drawMinimap();
+
+
+      function drawMinimap() {
+  // 미니맵 설정
+  const radius = 84; // 미니맵 반지름(px)
+  const border = 4;
+  const centerX = canvas.width - radius - 28;
+  const centerY = radius + 26;
+  const worldView = 3000; // 미니맵에 표시되는 월드 범위(한 변 길이)
+  const mapScale = radius / worldView * 0.9; // 점 위치 보정용
+
+  ctx.save();
+  // 둥근 미니맵 마스킹(clip)
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.clip();
+
+  // 반투명한 배경
+  ctx.globalAlpha = 0.64;
+  ctx.fillStyle = "#222d";
+  ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+
+  // 바깥 그라데이션 테두리
+  ctx.globalAlpha = 1.0;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  let grad = ctx.createRadialGradient(centerX, centerY, radius * 0.6, centerX, centerY, radius);
+  grad.addColorStop(0, "#88f2");
+  grad.addColorStop(0.75, "#d3f1");
+  grad.addColorStop(1, "#2229");
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = border * 2;
+  ctx.stroke();
+
+  // 북쪽(N) 표시
+  ctx.font = "bold 17px sans-serif";
+  ctx.fillStyle = "#ff2";
+  ctx.textAlign = "center";
+  ctx.fillText("N", centerX, centerY - radius + 19);
+
+  // === 경험치 구슬 위치 노란 점으로 찍기 ===
+  orbs.forEach(orb => {
+    const dx = orb.x - player.x;
+    const dy = orb.y - player.y;
+    if (dx * dx + dy * dy < worldView * worldView / 1.8) {
+      const dotX = centerX + dx * mapScale;
+      const dotY = centerY + dy * mapScale;
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffe76a";
+      ctx.globalAlpha = 0.9;
+      ctx.shadowColor = "#ffe76a";
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  });
+
+  // === 나비 몬스터(살아있는) 위치 빨간 점으로 표시 ===
+  ctx.globalAlpha = 1.0;
+  butterflies.forEach(b => {
+    if (b.state === "dead") return; // 죽은 건 표시 안 함
+    const dx = b.x - player.x;
+    const dy = b.y - player.y;
+    if (dx * dx + dy * dy < worldView * worldView / 1.8) {
+      const dotX = centerX + dx * mapScale;
+      const dotY = centerY + dy * mapScale;
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff2d2d";
+      ctx.globalAlpha = 0.95;
+      ctx.shadowColor = "#ff3333";
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  });
+
+  // === 내 위치 (연두색 원) ===
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 7.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#4bff6b";
+  ctx.globalAlpha = 1.0;
+  ctx.shadowColor = "#fff";
+  ctx.shadowBlur = 6;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+    
+    // draw() 제일 마지막 부분
+updateKillMsgParticles();
+drawKillMsgParticles();
+drawKillMsg();
+
+
+      requestAnimationFrame(draw);
+    }
+
+    // 이미지 3개 모두 로드 후 루프 시작
+    let loadedCount = 0;
+
+[grassImg, treeImg, scoutImg, arrowImg].forEach(img => {
+  img.onload = () => {
+    loadedCount++;
+    if (loadedCount === 4) {
+      requestOrbs(); // ★★★ 추가! 최초에 구슬 요청
+      draw();
+    }
+  }
+});
+
+
+function renderRanking() {
+  const rankList = document.getElementById('rankList');
+  rankList.innerHTML = '';
+
+  // 레벨 내림차순 정렬
+  const sorted = Object.values(allPlayers)
+    .filter(p => p && p.name)
+    .sort((a, b) => (b.level ?? 1) - (a.level ?? 1));
+
+  // 상위 3명만 자르기
+  sorted.slice(0, 3).forEach((p, idx) => {
+    const div = document.createElement('div');
+    div.className = 'rankRow' + (idx === 0 ? ' top1' : idx === 1 ? ' top2' : idx === 2 ? ' top3' : '');
+    div.innerHTML = `
+      <span class="rankNum">${idx + 1}</span>
+      <span class="name">${p.name}</span>
+      <span class="level">Lv.${p.level ?? 1}</span>
+    `;
+    rankList.appendChild(div);
+  });
+}
+
+// X축 반복 (좌우)
+if (player.x < 0) {
+  player.x = MAP_SIZE;
+}
+if (player.x > MAP_SIZE) {
+  player.x = 0;
+}
+
+// Y축 반복 (상하)
+if (player.y < 0) {
+  player.y = MAP_SIZE;
+}
+if (player.y > MAP_SIZE) {
+  player.y = 0;
+}
+
+
+
+
+  </script>
+</body>
+</html>
